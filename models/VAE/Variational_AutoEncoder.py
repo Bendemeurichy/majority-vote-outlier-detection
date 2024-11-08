@@ -131,7 +131,7 @@ class VariationalAutoEncoder(nn.Module):
         }
 
     # TODO: Implement the following functions
-    def train_normal_data(self, dataloader, optimizer, loss_fn, epochs):
+    def train(self, dataloader, optimizer, loss_fn, epochs):
         """Train the model on normal data.
 
         Args:
