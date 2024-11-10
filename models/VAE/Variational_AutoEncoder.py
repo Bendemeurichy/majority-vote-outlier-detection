@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from tqdm import tqdm
+import optuna
+import numpy as np
 
 # code from: https://hunterheidenreich.com/posts/modern-variational-autoencoder-in-pytorch/
 
@@ -131,33 +134,186 @@ class VariationalAutoEncoder(nn.Module):
         }
 
     # TODO: Implement the following functions
-    def train(self, dataloader, optimizer, loss_fn, epochs):
-        """Train the model on normal data.
-
-        Args:
-            dataloader (torch.utils.data.DataLoader): DataLoader for the training data.
-            optimizer (torch.optim.Optimizer): Optimizer for the model.
-            loss_fn (torch.nn.Module): Loss function for the model.
-            epochs (int): Number of epochs to train the model.
+    def train(self, dataloader, optimizer, prev_updates, writer=None):
         """
-        pass
-
-    def test(model, dataloader):
-        """Test the model on normal data.
+        Trains the model on the given data.
 
         Args:
-            dataloader (torch.utils.data.DataLoader): DataLoader for the test data.
+            model (nn.Module): The model to train.
+            dataloader (torch.utils.data.DataLoader): The data loader.
+            loss_fn: The loss function.
+            optimizer: The optimizer.
         """
-        pass
+        self.train()  # Set the model to training mode
+        device = next(self.parameters()).device
 
-    def extract_error_treshold(self, dataloader):
-        """Evaluate the model on normal data.
-            Measure the reconstruction error for the normal data.
-            Used to set the threshold for the anomaly detection.
+        for batch_idx, (data, target) in enumerate(tqdm(dataloader)):
+            n_upd = prev_updates + batch_idx
+
+            data = data.to(device)
+
+            optimizer.zero_grad()  # Zero the gradients
+
+            output = self(data)  # Forward pass
+            loss = output.loss
+
+            loss.backward()
+
+            if n_upd % 100 == 0:
+                # Calculate and log gradient norms
+                total_norm = 0.0
+                for p in self.parameters():
+                    if p.grad is not None:
+                        param_norm = p.grad.data.norm(2)
+                        total_norm += param_norm.item() ** 2
+                total_norm = total_norm ** (1.0 / 2)
+
+                print(
+                    f"Step {n_upd:,} (N samples: {n_upd*dataloader.batch_size:,}), Loss: {loss.item():.4f} (Recon: {output.loss_recon.item():.4f}, KL: {output.loss_kl.item():.4f}) Grad: {total_norm:.4f}"
+                )
+
+                if writer is not None:
+                    global_step = n_upd
+                    writer.add_scalar("Loss/Train", loss.item(), global_step)
+                    writer.add_scalar(
+                        "Loss/Train/BCE", output.loss_recon.item(), global_step
+                    )
+                    writer.add_scalar(
+                        "Loss/Train/KLD", output.loss_kl.item(), global_step
+                    )
+                    writer.add_scalar("GradNorm/Train", total_norm, global_step)
+
+            # gradient clipping
+            torch.nn.utils.clip_grad_norm_(self.parameters(), 1.0)
+
+            optimizer.step()  # Update the model parameters
+
+        return prev_updates + len(dataloader)
+
+    def test(self, dataloader, cur_step, writer=None):
+        """
+        Tests the model on the given data.
 
         Args:
-            dataloader (torch.utils.data.DataLoader): DataLoader for the evaluation data.
+            dataloader (torch.utils.data.DataLoader): The data loader.
+            cur_step (int): The current step.
+            writer: The TensorBoard writer.
+        """
+        self.eval()  # Set the model to evaluation mode
+        device = next(self.parameters()).device
+        test_loss = 0
+        test_recon_loss = 0
+        test_kl_loss = 0
+
+        with torch.no_grad():
+            for data, target in tqdm(dataloader, desc="Testing"):
+                data = data.to(device)
+                data = data.view(data.size(0), -1)  # Flatten the data
+
+                output = self(data, compute_loss=True)  # Forward pass
+
+                test_loss += output.loss.item()
+                test_recon_loss += output.loss_recon.item()
+                test_kl_loss += output.loss_kl.item()
+
+        test_loss /= len(dataloader)
+        test_recon_loss /= len(dataloader)
+        test_kl_loss /= len(dataloader)
+        print(
+            f"====> Test set loss: {test_loss:.4f} (BCE: {test_recon_loss:.4f}, KLD: {test_kl_loss:.4f})"
+        )
+
+        if writer is not None:
+            writer.add_scalar("Loss/Test", test_loss, global_step=cur_step)
+            writer.add_scalar(
+                "Loss/Test/BCE", output.loss_recon.item(), global_step=cur_step
+            )
+            writer.add_scalar(
+                "Loss/Test/KLD", output.loss_kl.item(), global_step=cur_step
+            )
+
+            # Log reconstructions
+            writer.add_images(
+                "Test/Reconstructions",
+                output.x_recon.view(-1, 1, 28, 28),
+                global_step=cur_step,
+            )
+            writer.add_images(
+                "Test/Originals", data.view(-1, 1, 28, 28), global_step=cur_step
+            )
+
+            # Log random samples from the latent space
+            z = torch.randn(16, self.latent_dim).to(device)
+            samples = self.decode(z)
+            writer.add_images(
+                "Test/Samples", samples.view(-1, 1, 28, 28), global_step=cur_step
+            )
+
+    def extract_error_threshold(self, dataloader, percentile=95):
+        """Evaluate the model on normal data to determine the anomaly threshold.
+        The threshold is set at a high percentile of reconstruction errors on normal data.
+
+        Args:
+            dataloader (torch.utils.data.DataLoader): DataLoader containing normal data
+            percentile (int, optional): Percentile to use for threshold. Defaults to 95.
+
         Returns:
-            torch.Tensor: Reconstruction error for the normal data.
+            float: Threshold value for anomaly detection
         """
-        pass
+        self.eval()
+        device = next(self.parameters()).device
+        reconstruction_errors = []
+
+        with torch.no_grad():
+            for data, _ in tqdm(dataloader, desc="Computing threshold"):
+                data = data.to(device)
+
+                # Get model outputs
+                output = self(data, compute_loss=False)
+                x_reconstructed = output["x_reconstructed"]
+
+                # Compute reconstruction error for each sample
+                errors = F.binary_cross_entropy(
+                    x_reconstructed, data, reduction="none"
+                ).sum(dim=-1)
+                reconstruction_errors.extend(errors.cpu().numpy())
+
+        # Set threshold at specified percentile
+        threshold = np.percentile(reconstruction_errors, percentile)
+        return threshold
+
+    def predict(self, data, threshold=None):
+        """Predict if the data contains singlets (normal) or doublets (anomalies).
+
+        Args:
+            data (torch.Tensor): Input data
+            threshold (float, optional): Anomaly threshold. If None, returns raw reconstruction errors.
+
+        Returns:
+            Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+                If threshold is provided: Class predictions ('singlet' = 0, 'doublet' = 1)
+                and reconstruction errors
+                If threshold is None: Reconstruction errors for each sample
+        """
+        self.eval()
+        device = next(self.parameters()).device
+        data = data.to(device)
+
+        with torch.no_grad():
+            # Get model outputs
+            output = self(data, compute_loss=False)
+            x_reconstructed = output["x_reconstructed"]
+
+            # Compute reconstruction error
+            errors = F.binary_cross_entropy(
+                x_reconstructed, data, reduction="none"
+            ).sum(dim=-1)
+
+            if threshold is not None:
+                # 0 = singlet (normal), 1 = doublet (anomaly)
+                predictions = (errors > threshold).float()
+                # Can optionally add labels for clarity
+                labels = torch.where(predictions == 0, "singlet", "doublet")
+                return predictions, labels, errors
+
+            return errors
