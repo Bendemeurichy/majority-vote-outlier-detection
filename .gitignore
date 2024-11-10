@@ -165,3 +165,4 @@ cython_debug/
 HT29_data/
 /poetry.lock
 /.idea
+__ignore*
