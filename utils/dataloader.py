@@ -1,6 +1,6 @@
 import sys
 
-sys.append("../")
+sys.path.append("..")
 from preprocessing.tiff_handling import handle_tiff
 import pandas as pd
 from PIL import Image
