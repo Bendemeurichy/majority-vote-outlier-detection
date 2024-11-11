@@ -17,7 +17,12 @@ def get_project_root() -> Path:
 def load_pandas() -> pd.DataFrame:
     project_root = get_project_root()
     data_path = project_root / "HT29_data" / "features.csv"
-    return pd.read_csv(data_path, delimiter=";").iloc[:, -3:]
+    frame = pd.read_csv(data_path, delimiter=";").iloc[:, -3:]
+
+    frame["file_names"] = frame["file_names"].apply(
+        lambda x: str(project_root / "HT29_data" / "images" / x)
+    )
+    return frame
 
 
 def split_data(
@@ -37,11 +42,10 @@ def split_data(
     Returns:
         tuple: Training, validation, and test sets.
     """
-    #split the data in inliers and outliers
+    # split the data in inliers and outliers
     inliers = get_correct_data(data)
     outliers = get_outliers(data)
-    
-    
+
     # Split into training + temp (test + validation)
     train_data, temp_data = train_test_split(
         inliers, test_size=test_size + val_size, random_state=random_state
@@ -53,14 +57,14 @@ def split_data(
         test_size=val_size / (test_size + val_size),
         random_state=random_state,
     )
-    
+
     # sample 20% of the outliers to add to the test dataset
     outliers = sample_data(outliers, int(len(test_data) * 0.2))
-    
-    # Add the outliers to the test dataset, 
+
+    # Add the outliers to the test dataset,
     # the validation dataset will be used to optimize the models representation of the inliers
     test_data = pd.concat([test_data, outliers])
-    
+
     return (train_data, val_data, test_data)
 
 
@@ -100,6 +104,7 @@ def sample_data(data: pd.DataFrame, n_samples: int, random_state=42) -> pd.DataF
         pd.DataFrame: Sampled data.
     """
     return data.sample(n_samples, random_state=random_state)
+
 
 def get_outliers(data: pd.DataFrame) -> pd.DataFrame:
     """Get the data that has the incorrect classification.

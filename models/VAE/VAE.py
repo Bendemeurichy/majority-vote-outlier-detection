@@ -8,7 +8,7 @@ import numpy as np
 # code from: https://hunterheidenreich.com/posts/modern-variational-autoencoder-in-pytorch/
 
 
-class VariationalAutoEncoder(nn.Module):
+class VAE(nn.Module):
     """Variational AutoEncoder model using PyTorch.
         The mdodel will be used to detect anomalies in the dataset.
         This means it will be trained on normal data and then used to predict if the input data is an anomaly or not.
@@ -19,8 +19,12 @@ class VariationalAutoEncoder(nn.Module):
         latent_dim (int): Number of latent dimensions.
     """
 
-    def __init__(self, input_dim, hidden_dim, latent_dim):
-        super(VariationalAutoEncoder, self).__init__()
+    def __init__(self, input_dim: int, hidden_dim: int, latent_dim: int):
+        super(VAE, self).__init__()
+        
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+        self.latent_dim = latent_dim
 
         self.encoder = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
@@ -134,7 +138,7 @@ class VariationalAutoEncoder(nn.Module):
         }
 
     # TODO: Implement the following functions
-    def train(self, dataloader, optimizer, prev_updates, writer=None):
+    def train_model(self, dataloader, optimizer, prev_updates, writer=None):
         """
         Trains the model on the given data.
 
@@ -155,7 +159,7 @@ class VariationalAutoEncoder(nn.Module):
             optimizer.zero_grad()  # Zero the gradients
 
             output = self(data)  # Forward pass
-            loss = output.loss
+            loss = output["loss"]  # Compute the loss
 
             loss.backward()
 
@@ -169,17 +173,17 @@ class VariationalAutoEncoder(nn.Module):
                 total_norm = total_norm ** (1.0 / 2)
 
                 print(
-                    f"Step {n_upd:,} (N samples: {n_upd*dataloader.batch_size:,}), Loss: {loss.item():.4f} (Recon: {output.loss_recon.item():.4f}, KL: {output.loss_kl.item():.4f}) Grad: {total_norm:.4f}"
+                    f"Step {n_upd:,} (N samples: {n_upd*dataloader.batch_size:,}), Loss: {loss.item():.4f} (Recon: {output['loss_reconstruction'].item():.4f}, KL: {output['loss_kl'].item():.4f}) Grad: {total_norm:.4f}"
                 )
 
                 if writer is not None:
                     global_step = n_upd
                     writer.add_scalar("Loss/Train", loss.item(), global_step)
                     writer.add_scalar(
-                        "Loss/Train/BCE", output.loss_recon.item(), global_step
+                        "Loss/Train/BCE", output["loss_reconstruction"].item(), global_step
                     )
                     writer.add_scalar(
-                        "Loss/Train/KLD", output.loss_kl.item(), global_step
+                        "Loss/Train/KLD", output['loss_kl'].item(), global_step
                     )
                     writer.add_scalar("GradNorm/Train", total_norm, global_step)
 
@@ -212,9 +216,9 @@ class VariationalAutoEncoder(nn.Module):
 
                 output = self(data, compute_loss=True)  # Forward pass
 
-                test_loss += output.loss.item()
-                test_recon_loss += output.loss_recon.item()
-                test_kl_loss += output.loss_kl.item()
+                test_loss += output["loss"].item()
+                test_recon_loss += output["loss_reconstruction"].item()
+                test_kl_loss += output["loss_kl"].item()
 
         test_loss /= len(dataloader)
         test_recon_loss /= len(dataloader)
@@ -226,27 +230,27 @@ class VariationalAutoEncoder(nn.Module):
         if writer is not None:
             writer.add_scalar("Loss/Test", test_loss, global_step=cur_step)
             writer.add_scalar(
-                "Loss/Test/BCE", output.loss_recon.item(), global_step=cur_step
+                "Loss/Test/BCE", output["loss_reconstruction"].item(), global_step=cur_step
             )
             writer.add_scalar(
-                "Loss/Test/KLD", output.loss_kl.item(), global_step=cur_step
+                "Loss/Test/KLD", output["loss_kl"].item(), global_step=cur_step
             )
 
             # Log reconstructions
             writer.add_images(
                 "Test/Reconstructions",
-                output.x_recon.view(-1, 1, 28, 28),
+                output['x_reconstructed'].view(-1, 1, 60, 80),
                 global_step=cur_step,
             )
             writer.add_images(
-                "Test/Originals", data.view(-1, 1, 28, 28), global_step=cur_step
+                "Test/Originals", data.view(-1, 1, 60, 80), global_step=cur_step
             )
 
             # Log random samples from the latent space
             z = torch.randn(16, self.latent_dim).to(device)
             samples = self.decode(z)
             writer.add_images(
-                "Test/Samples", samples.view(-1, 1, 28, 28), global_step=cur_step
+                "Test/Samples", samples.view(-1, 1, 60, 80), global_step=cur_step
             )
 
     def extract_error_threshold(self, dataloader, percentile=95):
