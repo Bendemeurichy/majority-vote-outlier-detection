@@ -122,8 +122,7 @@ class VAE(nn.Module):
         )
 
         loss_kl = (
-            torch.distributions.kl_divergence(distribution, std_normal)
-            .sum(dim=-1)
+            torch.distributions.kl.kl_divergence(distribution, std_normal)
             .mean()
         )
         loss = loss_reconstruction + loss_kl
@@ -252,6 +251,7 @@ class VAE(nn.Module):
             writer.add_images(
                 "Test/Samples", samples.view(-1, 1, 60, 80), global_step=cur_step
             )
+        return test_loss
 
     def extract_error_threshold(self, dataloader, percentile=95):
         """Evaluate the model on normal data to determine the anomaly threshold.
