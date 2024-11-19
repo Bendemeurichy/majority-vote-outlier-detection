@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
-import optuna
 import numpy as np
 
 # code from: https://hunterheidenreich.com/posts/modern-variational-autoencoder-in-pytorch/
@@ -19,9 +18,11 @@ class VAE(nn.Module):
         latent_dim (int): Number of latent dimensions.
     """
 
-    def __init__(self, input_dim: int, hidden_dim: int, latent_dim: int):
+    def __init__(self, input_dim: int, hidden_dim: int, latent_dim: int, treshold=None):
         super(VAE, self).__init__()
-        
+
+        self.treshold = treshold
+
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.latent_dim = latent_dim
@@ -121,10 +122,7 @@ class VAE(nn.Module):
             torch.zeros_like(sample), torch.eye(sample.shape[-1])
         )
 
-        loss_kl = (
-            torch.distributions.kl.kl_divergence(distribution, std_normal)
-            .mean()
-        )
+        loss_kl = torch.distributions.kl.kl_divergence(distribution, std_normal).mean()
         loss = loss_reconstruction + loss_kl
 
         return {
@@ -179,10 +177,12 @@ class VAE(nn.Module):
                     global_step = n_upd
                     writer.add_scalar("Loss/Train", loss.item(), global_step)
                     writer.add_scalar(
-                        "Loss/Train/BCE", output["loss_reconstruction"].item(), global_step
+                        "Loss/Train/BCE",
+                        output["loss_reconstruction"].item(),
+                        global_step,
                     )
                     writer.add_scalar(
-                        "Loss/Train/KLD", output['loss_kl'].item(), global_step
+                        "Loss/Train/KLD", output["loss_kl"].item(), global_step
                     )
                     writer.add_scalar("GradNorm/Train", total_norm, global_step)
 
@@ -229,7 +229,9 @@ class VAE(nn.Module):
         if writer is not None:
             writer.add_scalar("Loss/Test", test_loss, global_step=cur_step)
             writer.add_scalar(
-                "Loss/Test/BCE", output["loss_reconstruction"].item(), global_step=cur_step
+                "Loss/Test/BCE",
+                output["loss_reconstruction"].item(),
+                global_step=cur_step,
             )
             writer.add_scalar(
                 "Loss/Test/KLD", output["loss_kl"].item(), global_step=cur_step
@@ -238,7 +240,7 @@ class VAE(nn.Module):
             # Log reconstructions
             writer.add_images(
                 "Test/Reconstructions",
-                output['x_reconstructed'].view(-1, 1, 60, 80),
+                output["x_reconstructed"].view(-1, 1, 60, 80),
                 global_step=cur_step,
             )
             writer.add_images(
@@ -284,6 +286,7 @@ class VAE(nn.Module):
 
         # Set threshold at specified percentile
         threshold = np.percentile(reconstruction_errors, percentile)
+        self.threshold = threshold
         return threshold
 
     def predict(self, data, threshold=None):
@@ -313,11 +316,15 @@ class VAE(nn.Module):
                 x_reconstructed, data, reduction="none"
             ).sum(dim=-1)
 
+            threshold = threshold or self.threshold
+            if threshold is None:
+                raise ValueError("Threshold is not provided or set.")
+
             if threshold is not None:
                 # 0 = singlet (normal), 1 = doublet (anomaly)
                 predictions = (errors > threshold).float()
                 # Can optionally add labels for clarity
-                labels = torch.where(predictions == 0, "singlet", "doublet")
+                labels = torch.where(predictions == 0, "Singlet", "Doublet")
                 return predictions, labels, errors
 
             return errors
