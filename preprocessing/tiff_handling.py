@@ -1,7 +1,5 @@
 import tifffile as tiff
 import numpy as np
-import torch
-
 
 
 def handle_tiff(input_path) -> np.ndarray:
@@ -18,4 +16,15 @@ def handle_tiff(input_path) -> np.ndarray:
     img = tiff.imread(input_path)
     img = img[1:4]
     img = np.mean(img, axis=0)
+    img = np.expand_dims(img, axis=-1)
     return img
+
+
+def flatten_image(image: np.ndarray) -> np.ndarray:
+    """
+    Flatten the image to a 1D array
+    :param image: image to flatten as output from handle_tiff() (height x width)
+    :return: 1D array of image
+    """
+    img = image.squeeze()
+    return img.flatten()
