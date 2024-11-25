@@ -34,10 +34,11 @@ class CNN:
         all_outliers = load_csv.get_outliers(all_data)
 
         if data_fraction < 1.0:
-            size = int(data_fraction * len(all_inliers))
-            data = load_csv.sample_data(all_inliers, size)
+            inlier_size = int(data_fraction * len(all_inliers))
+            outlier_size = int(data_fraction * len(all_outliers))
+            data = load_csv.sample_data(all_inliers, inlier_size)
+            outliers = load_csv.sample_data(all_outliers, outlier_size)
 
-            outliers = load_csv.sample_data(all_outliers, size)
         else:
             data = all_inliers
             outliers = all_outliers
@@ -46,13 +47,19 @@ class CNN:
         outlier_features = fe.VGG_features(outliers, target_size=target_size)
 
         # Reserve 10% of the total inlier data for testing so that not pseudo-negative data is included
-        self.test_data = inlier_features.sample(frac=0.1, random_state=42)
+        self.test_data = inlier_features.sample(n=outlier_size, random_state=42)
 
         inlier_features = inlier_features.drop(self.test_data.index)
 
         # Append all of the outlier data to the test data(we chose to append all of the
         # (relative) outlier data since the amuont of outliers is appriximately equal to 10% of the inliers)
         self.test_data = pd.concat([self.test_data, outlier_features])
+
+        print(f"The training set size is: {len(inlier_features)}")
+        print(f"The amount of outliers in the test set is: {len(outlier_features)}")
+        print(
+            f"The amount of inliers in the test set is: {len(self.test_data) - len(outlier_features)}"
+        )
 
         self.data = fe.append_pseudo_negative_data(
             inlier_features, fraction=negative_data_fraction
@@ -71,9 +78,9 @@ class CNN:
             raise ValueError("Data has not been loaded yet.")
 
         # Determine the input dimension from the feature shape
-        input_dim = self.data.shape[
-            1
-        ]  # Assuming features is (N, D), where D is the feature size
+        input_dim = self.data.drop("classification", axis=1).shape[1]
+
+        print(f"Input dimension: {input_dim}")
 
         model = tf.keras.Sequential(
             [
@@ -126,6 +133,11 @@ class CNN:
         X_test = self.test_data.drop("classification", axis=1)
         y_test = self.test_data["classification"]
 
+        # Map labels for binary classification (0: inliers, 1: outliers)
+        y_train = y_train.apply(lambda y: 0 if y == 1 else 1)
+        y_val = y_val.apply(lambda y: 0 if y == 1 else 1)
+        y_test = y_test.apply(lambda y: 0 if y == 1 else 1)
+
         # Compile the model
         self.model.compile(
             optimizer="adam",
@@ -138,7 +150,7 @@ class CNN:
             X_train,
             y_train,
             validation_data=(X_val, y_val),
-            epochs=10,
+            epochs=20,
             batch_size=32,
             verbose=2,
         )
@@ -146,13 +158,24 @@ class CNN:
         # Evaluate the model
         self.evaluate(X_test, y_test)
 
-    def evaluate(self):
-        pass
+    def evaluate(self, X_test, y_test):
+        """Evaluates the model on the test data.
+
+        Args:
+            X_test (pd.DataFrame): Test features.
+            y_test (pd.Series): Test labels.
+        """
+        if self.model is None:
+            raise ValueError("Model has not been built yet.")
+
+        # Evaluate the model on the test data
+        test_loss, test_accuracy = self.model.evaluate(X_test, y_test, verbose=2)
+        print(f"Test Accuracy: {test_accuracy:.4f}, Test Loss: {test_loss:.4f}")
 
 
 if __name__ == "__main__":
     model = CNN()
-    model.load_data(data_fraction=0.005)
+    model.load_data(data_fraction=0.1)
     model.build()
     print("model built")
     model.train()

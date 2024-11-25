@@ -24,6 +24,7 @@ tifffile = "^2024.9.20"
 scikit-image = "^0.24.0"
 torchvision = "^0.20.1"
 pandas-stubs = "^2.2.3.241009"
+opencv-python = "^4.10.0.84"
 
 
 [build-system]

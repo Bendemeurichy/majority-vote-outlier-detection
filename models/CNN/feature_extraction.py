@@ -1,12 +1,15 @@
 import tensorflow as tf
 from tensorflow.keras.applications import VGG16
-from tensorflow.keras.preprocessing import image
 from tensorflow.keras.applications.vgg16 import preprocess_input
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import tifffile as tiff
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import cv2
 
 from utils import load_csv
+from preprocessing import tiff_handling
 
 DEBUG = False
 
@@ -23,7 +26,6 @@ def filter_single_cells(data: pd.DataFrame) -> pd.DataFrame:
     return data[data["classification"] == 1]
 
 
-# TODO: Make use of csv file to open
 def VGG_features(dataset: pd.DataFrame, target_size: tuple = (60, 80)) -> pd.DataFrame:
     """Extracts features from the dataset(images) using a pretrained VGG16 model.
 
@@ -126,10 +128,81 @@ def append_pseudo_negative_data(
     return augmented_data
 
 
+def standardize(
+    data: pd.DataFrame, target_size: tuple = (60, 80)
+) -> tuple[np.ndarray, np.ndarray]:
+    """Normalize, standardize, and center the dataset.
+
+    Args:
+        data (pd.DataFrame): Dataframe with the last 3 columns of the features.csv file.
+        target_size (tuple, optional): Target size (height, width) for resizing images.
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]: A tuple containing:
+            - A 4D NumPy array of processed images with shape (num_images, height, width, channels).
+            - A 2D NumPy array of corresponding labels.
+    """
+    features = []  # Use a list to store images
+
+    num_images = len(data)
+    for i in range(num_images):
+        current_image = data["file_names"].iloc[i]
+
+        # Handle and reshape the TIFF image
+        meaned_image = tiff_handling.handle_tiff(current_image)  # Shape: (H, W)
+        meaned_image = meaned_image[
+            ..., np.newaxis
+        ]  # Add a channel dimension, Shape: (H, W, 1)
+
+        # Resize the image to the target size
+        resized_image = tf.image.resize(meaned_image, target_size, method="bilinear")
+        print("Resulting img shape: ", resized_image.shape) if DEBUG else None
+
+        # Convert to NumPy array and append to the list
+        features.append(resized_image.numpy())
+
+    # Convert list to NumPy array, Shape: (num_images, height, width, channels)
+    features_array = np.array(features)
+
+    # creating the image data generator to standardize images
+    datagen = ImageDataGenerator(
+        featurewise_center=True, featurewise_std_normalization=True
+    )
+
+    datagen.fit(features_array)
+
+    # Extract labels
+    labels = data[["classification"]].values  # Convert DataFrame column to NumPy array
+    labels = np.where(labels == 1, 0, 1)
+
+    # Return processed images and labels
+    return features_array, labels
+
+
+def visualize(image: pd.DataFrame, method: str = "standardize"):
+    img = tiff.imread(image["file_names"].iloc[0])
+
+    for i, page in enumerate(img):
+        plt.imshow(page, cmap="gray")
+        plt.title(f"Page {i}")
+        plt.show()
+
+    if method == "VGG":
+        extracted_features = VGG_features(image)
+    else:
+        extracted_features, _ = standardize(image)
+
+    plt.figure(figsize=(60, 80))
+    plt.title("Extracted features")
+    plt.imshow(extracted_features, cmap="gray")
+    plt.show()
+
+
 if __name__ == "__main__":
     sample_data = load_csv.sample_data(
-        load_csv.get_correct_data(load_csv.load_pandas()), 10
+        load_csv.get_correct_data(load_csv.load_pandas()), 5
     )
-    single_cells = filter_single_cells(sample_data)
-    output = VGG_features(single_cells)
-    append_pseudo_negative_data(output)
+    trainX, trainy = standardize(sample_data)
+    print("trainX shape: ", trainX.shape)
+    print("trainy shape: ", trainy.shape)
+    print("trainy: ", trainy)
