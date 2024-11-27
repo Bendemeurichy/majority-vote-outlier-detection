@@ -1,0 +1,93 @@
+import numpy as np
+import pickle
+from minisom import MiniSom
+
+
+class SOM:
+    def __init_(self, width, height, input_len, sigma=1.0, learning_rate=0.5):
+        """Initializes the SOM model
+
+        Args:
+            width (int): Number of nodes in the x-axis
+            height (_type_): _description_
+            input_len (_type_): _description_
+            sigma (float, optional): _description_. Defaults to 1.0.
+            learning_rate (float, optional): _description_. Defaults to 0.5.
+        """
+
+        self.width = width
+        self.height = height
+        self.input_len = input_len
+        self.sigma = sigma
+        self.learning_rate = learning_rate
+        self.som = MiniSom(width, height, input_len, sigma, learning_rate)
+
+    def train(self, data, num_epochs):
+        """Trains the SOM model
+
+        Args:
+            data (np.array): Data to train the model
+            num_epochs (int): Number of epochs to train the model
+        """
+
+        print("initializing weights from data")
+        self.som.random_weights_init(data)
+        print("training...")
+        self.som.train_batch(data, num_epochs)
+        print("training completed")
+
+    def save(self, filepath):
+        """
+        Save the trained SOM model to a file.
+
+        :param filepath: Filepath to save the model
+        """
+        with open(filepath, "wb") as file:
+            pickle.dump(self.som, file)
+        print(f"Model saved to {filepath}.")
+
+    def load(self, filepath):
+        """
+        Load a trained SOM model from a file.
+
+        :param filepath: Filepath to load the model from
+        """
+        with open(filepath, "rb") as file:
+            self.som = pickle.load(file)
+        print(f"Model loaded from {filepath}.")
+
+    def predict(self, sample):
+        """
+        Predict the Best Matching Unit (BMU) for a given sample.
+
+        :param sample: Input data point (flattened numpy array)
+        :return: Coordinates of the BMU
+        """
+        return self.som.winner(sample)
+
+    def visualize_weights(self):
+        """
+        Visualize the SOM weights as a heatmap.
+        """
+        try:
+            import matplotlib.pyplot as plt
+
+            weights = self.som.get_weights()
+            plt.imshow(weights.reshape(-1, weights.shape[-1]), aspect="auto")
+            plt.colorbar()
+            plt.title("SOM Weights Heatmap")
+            plt.show()
+        except ImportError:
+            print("Matplotlib not installed. Install it to visualize the weights.")
+
+    def calculate_outlier_threshold(self, data, threshold=0.95):
+        """
+        Calculate the outlier threshold for the SOM model based on the quantile of the bmu distances.
+
+        :param data: Input data to calculate the threshold
+        :param threshold: Threshold value for outliers
+        :return: Outlier threshold value
+        """
+        bmu_distances = np.array([self.som._distance_from_weights(d) for d in data])
+        self.treshold = np.quantile(bmu_distances, threshold)
+        return self.treshold

@@ -24,8 +24,12 @@ tifffile = "^2024.9.20"
 scikit-image = "^0.24.0"
 torchvision = "^0.20.1"
 pandas-stubs = "^2.2.3.241009"
+torch = "^2.5.1"
+tensorboard = "^2.18.0"
+minisom = "^2.3.3"
 opencv-python = "^4.10.0.84"
 imblearn = "^0.0"
+
 
 
 [build-system]

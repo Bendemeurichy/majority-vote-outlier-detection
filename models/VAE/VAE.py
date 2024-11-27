@@ -118,8 +118,10 @@ class VAE(nn.Module):
             .mean()
         )
 
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         std_normal = torch.distributions.MultivariateNormal(
-            torch.zeros_like(sample), torch.eye(sample.shape[-1])
+            torch.zeros_like(sample).to(device), torch.eye(sample.shape[-1]).to(device)
         )
 
         loss_kl = torch.distributions.kl.kl_divergence(distribution, std_normal).mean()
