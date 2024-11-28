@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
+import pandas as pd
 import numpy as np
 
 # code from: https://hunterheidenreich.com/posts/modern-variational-autoencoder-in-pytorch/
@@ -136,7 +137,6 @@ class VAE(nn.Module):
             "loss_kl": loss_kl,
         }
 
-    # TODO: Implement the following functions
     def train_model(self, dataloader, optimizer, prev_updates, writer=None):
         """
         Trains the model on the given data.
@@ -269,7 +269,7 @@ class VAE(nn.Module):
             float: Threshold value for anomaly detection
         """
         self.eval()
-        device = next(self.parameters()).device
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         reconstruction_errors = []
 
         with torch.no_grad():
@@ -291,42 +291,40 @@ class VAE(nn.Module):
         self.threshold = threshold
         return threshold
 
-    def predict(self, data, threshold=None):
+    def predict(self, data: pd.DataFrame, threshold=None):
         """Predict if the data contains singlets (normal) or doublets (anomalies).
 
         Args:
-            data (torch.Tensor): Input data
+            data (pd.DataFrame): Input data.
             threshold (float, optional): Anomaly threshold. If None, returns raw reconstruction errors.
 
         Returns:
-            Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+            Adds a new column 'prediction' to the input data:
                 If threshold is provided: Class predictions ('singlet' = 0, 'doublet' = 1)
                 and reconstruction errors
                 If threshold is None: Reconstruction errors for each sample
         """
         self.eval()
-        device = next(self.parameters()).device
-        data = data.to(device)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        images = torch.stack(data["image"].values).to(device)
 
         with torch.no_grad():
-            # Get model outputs
-            output = self(data, compute_loss=False)
+            output = self(images, compute_loss=False)
             x_reconstructed = output["x_reconstructed"]
 
-            # Compute reconstruction error
+            # Compute reconstruction error for each sample
             errors = F.binary_cross_entropy(
-                x_reconstructed, data, reduction="none"
+                x_reconstructed, images, reduction="none"
             ).sum(dim=-1)
 
-            threshold = threshold or self.threshold
-            if threshold is None:
-                raise ValueError("Threshold is not provided or set.")
+            if threshold := (threshold or self.threshold):
+                # Predict anomalies
+                predictions = (errors > threshold).astype(int)
+                data["prediction"] = [
+                    "Doublet" if p else "Singlet" for p in predictions
+                ]
 
-            if threshold is not None:
-                # 0 = singlet (normal), 1 = doublet (anomaly)
-                predictions = (errors > threshold).float()
-                # Can optionally add labels for clarity
-                labels = torch.where(predictions == 0, "Singlet", "Doublet")
-                return predictions, labels, errors
+            else:
+                data["reconstruction_error"] = errors.cpu().numpy()
 
-            return errors
+        return data
