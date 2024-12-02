@@ -167,3 +167,4 @@ HT29_data/
 /.idea
 __ignore*
 runs/
+.pth

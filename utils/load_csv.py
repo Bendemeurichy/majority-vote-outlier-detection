@@ -58,9 +58,6 @@ def split_data(
         random_state=random_state,
     )
 
-    # sample 20% of the outliers to add to the test dataset
-    outliers = sample_data(outliers, int(len(test_data) * 0.2))
-
     # Add the outliers to the test dataset,
     # the validation dataset will be used to optimize the models representation of the inliers
     test_data = pd.concat([test_data, outliers])

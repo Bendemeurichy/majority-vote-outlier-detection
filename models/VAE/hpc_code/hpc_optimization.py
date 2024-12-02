@@ -28,12 +28,11 @@ def objective(trial):
     input_dim = 4800
     training_size = len(train)
     batch_size = trial.suggest_categorical("batch_size", [training_size//10, training_size//5, training_size//2])
-    hidden_dim = trial.suggest_int("hidden_dim", 500, 4000, step=500)
-    latent_dim = trial.suggest_int("latent_dim", 10, 1000, step=10)
-    epochs = trial.suggest_int("epochs", 10, 1000,step=10)
+    hidden_dim = trial.suggest_int("hidden_dim", 200, 4000, step=200)
+    latent_dim = trial.suggest_int("latent_dim", 10, 400, step=10)
+    epochs = trial.suggest_int("epochs", 50, 500,step=50)
 
-    learning_rate = trial.suggest_loguniform("learning_rate", 1e-5, 1e-2)
-    #learning_rate = 1e-3
+    learning_rate = 1e-4
     weight_decay = 1e-2
 
     model = VAE(input_dim, hidden_dim, latent_dim).to(device)
@@ -93,7 +92,7 @@ study = optuna.create_study(direction="minimize",
                             study_name="VAE",
                             sampler=optuna.samplers.TPESampler(),
                             pruner=optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=30))
-study.optimize(objective, n_trials=1000, timeout=600)
+study.optimize(objective, n_trials=1000, timeout=6000,)
 
 print("Number of finished trials: ", len(study.trials))
 print("Best trial:")

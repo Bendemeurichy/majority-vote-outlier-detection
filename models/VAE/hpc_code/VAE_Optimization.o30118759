@@ -1,0 +1,50 @@
+train length: 4369
+val length: 1457
+test length: 1748
+outlier test training: False
+outlier test validation: False
+outlier test test: True
+Epoch 1/20
+Step 0 (N samples: 0), Loss: 3331.8047 (Recon: 3327.5044, KL: 4.3003) Grad: 26.7997
+====> Test set loss: 3272.4573 (BCE: 3270.9176, KLD: 1.5396)
+Epoch 2/20
+====> Test set loss: 2790.7037 (BCE: 2583.7879, KLD: 206.9157)
+Epoch 3/20
+====> Test set loss: 2359.5993 (BCE: 2308.3721, KLD: 51.2272)
+Epoch 4/20
+====> Test set loss: 2176.3903 (BCE: 2154.1715, KLD: 22.2189)
+Epoch 5/20
+====> Test set loss: 2118.6019 (BCE: 2107.0786, KLD: 11.5233)
+Early stopping...
+Epoch 1/560
+Step 0 (N samples: 0), Loss: 3406.0525 (Recon: 3327.8589, KL: 78.1935) Grad: 28.4067
+====> Test set loss: 3355.8536 (BCE: 3288.6466, KLD: 67.2070)
+Epoch 2/560
+====> Test set loss: 3219.9282 (BCE: 3166.9924, KLD: 52.9357)
+Epoch 3/560
+====> Test set loss: 2693.3357 (BCE: 2391.7707, KLD: 301.5649)
+Epoch 4/560
+====> Test set loss: 2286.5620 (BCE: 2230.1343, KLD: 56.4277)
+Epoch 5/560
+====> Test set loss: 2162.7645 (BCE: 2118.0145, KLD: 44.7500)
+Early stopping...
+Epoch 1/150
+Step 0 (N samples: 0), Loss: 3404.8696 (Recon: 3327.5557, KL: 77.3139) Grad: 28.9528
+====> Test set loss: 3162.1139 (BCE: 3089.9351, KLD: 72.1788)
+Epoch 2/150
+====> Test set loss: 2241.6992 (BCE: 2197.5001, KLD: 44.1991)
+Epoch 3/150
+====> Test set loss: 2157.2087 (BCE: 2130.3541, KLD: 26.8546)
+Epoch 4/150
+====> Test set loss: 2130.3213 (BCE: 2117.4437, KLD: 12.8776)
+Epoch 5/150
+====> Test set loss: 2113.5775 (BCE: 2104.0241, KLD: 9.5534)
+Early stopping...
+Number of finished trials:  3
+Best trial:
+  Value: 2113.5775146484375
+  Params: 
+    batch_size: 436
+    hidden_dim: 4000
+    latent_dim: 720
+    epochs: 150
