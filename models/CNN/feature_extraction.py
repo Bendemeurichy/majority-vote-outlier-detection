@@ -149,10 +149,8 @@ def standardize(
         current_image = data["file_names"].iloc[i]
 
         # Handle and reshape the TIFF image
-        meaned_image = tiff_handling.handle_tiff(current_image)  # Shape: (H, W)
-        meaned_image = meaned_image[
-            ..., np.newaxis
-        ]  # Add a channel dimension, Shape: (H, W, 1)
+        meaned_image = tiff_handling.handle_tiff(current_image)  # Shape: (H, W, 1)
+        print("Original img shape: ", meaned_image.shape) if DEBUG else None
 
         # Resize the image to the target size
         resized_image = tf.image.resize(meaned_image, target_size, method="bilinear")

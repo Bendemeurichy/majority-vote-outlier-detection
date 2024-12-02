@@ -134,8 +134,25 @@ class CNN_v2:
         _, acc = model.evaluate(test_iterator, steps=len(test_iterator), verbose=0)
         print("Test Accuracy: %.3f" % (acc * 100))
 
+        self.model = model
+
+    def predict(self, data: np.ndarray):
+        if self.model is None:
+            raise ValueError("Model has not been trained yet")
+
+        return self.model.predict(data)
+
+    def save_model(self, path: str):
+        if self.model is None:
+            raise ValueError("Model has not been trained yet")
+
+        self.model.save(path)
+
+    def load_model(self, path: str):
+        self.model = tf.keras.models.load_model(path)
+
 
 if __name__ == "__main__":
     model = CNN_v2()
-    model.load_data(data_fraction=0.5)
+    model.load_data(data_fraction=1.0)
     model.train()
