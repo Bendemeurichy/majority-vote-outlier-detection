@@ -28,7 +28,8 @@ class CNN_v2:
         data_fraction: float = 1.0,
         target_size: tuple = (60, 80),
         val_size: float = 0.2,
-        test_size: float = 0.1,
+        test_size: float = 0.0,
+        test_set: pd.DataFrame = pd.DataFrame([]),
         use_smote: bool = True,
     ):
         # Load all the data and separate inliers and outliers
@@ -36,7 +37,6 @@ class CNN_v2:
         all_inliers = load_csv.get_correct_data(all_data)
         all_outliers = load_csv.get_outliers(all_data)
 
-        # TODO: if this model yields better results for small dataset(amount of outliers=amount of inliers ==> max 20% of the data) implement function that generates more outliers by rotating the images
         if data_fraction < 1.0:
             inlier_size = int(data_fraction * len(all_inliers))
             data = load_csv.sample_data(all_inliers, inlier_size)
@@ -67,15 +67,36 @@ class CNN_v2:
             )
             features_y = smote_y
 
-        X_train, X_temp, y_train, y_temp = train_test_split(
-            features_X, features_y, test_size=(test_size + val_size), random_state=42
-        )
+        if test_set.size > 0:
+            # Standardize the test set
+            test_features_X, test_features_y = fe.standardize(
+                test_set, target_size=target_size
+            )
+            X_test = test_features_X
+            y_test = test_features_y.reshape(-1)
 
-        X_val, X_test, y_val, y_test = train_test_split(
-            X_temp,
-            y_temp,
-            test_size=test_size / (test_size + val_size),
-            random_state=42,
+            # Flatten test features for comparison
+            flattened_test_features_X = X_test.reshape(
+                (X_test.shape[0], X_test.shape[1] * X_test.shape[2])
+            )
+
+            # Find indices of test data in the SMOTE-generated data
+            smote_flattened_features_X = features_X.reshape(
+                (features_X.shape[0], features_X.shape[1] * features_X.shape[2])
+            )
+            mask = ~np.isin(smote_flattened_features_X, flattened_test_features_X).all(
+                axis=1
+            )
+
+            # Filter out test features and labels from the SMOTE data
+            features_X = features_X[mask]
+            features_y = features_y[mask]
+        else:
+            X_test = np.array([])
+            y_test = np.array([])
+
+        X_train, X_val, y_train, y_val = train_test_split(
+            features_X, features_y, test_size=val_size, random_state=42
         )
 
         # Saving the split data
@@ -86,10 +107,25 @@ class CNN_v2:
         self.y_val = y_val
         self.y_test = y_test
 
+        print(f"Training data shape: {X_train.shape}")
+        print(f"Validation data shape: {X_val.shape}")
+        print(f"Test data shape: {X_test.shape}")
+        print(f"Training labels shape: {y_train.shape}")
+        print(f"Validation labels shape: {y_val.shape}")
+        print(f"Test labels shape: {y_test.shape}")
+
     def train(
         self,
         epochs: int = 10,
     ):
+        """Train the model
+
+        Args:
+            epochs (int, optional): amount of epochs used to train the model. Defaults to 10.
+
+        Raises:
+            ValueError: Data has not been loaded yet
+        """
         if self.X_train.size == 0:
             raise ValueError("Data has not been loaded yet")
 
@@ -101,7 +137,6 @@ class CNN_v2:
 
         train_iterator = datagen.flow(self.X_train, self.y_train, batch_size=64)
         val_iterator = datagen.flow(self.X_val, self.y_val, batch_size=64)
-        test_iterator = datagen.flow(self.X_test, self.y_test, batch_size=64)
 
         width, height, channels = self.X_train.shape[1], self.X_train.shape[2], 1
 
@@ -130,10 +165,6 @@ class CNN_v2:
             epochs=epochs,
         )
 
-        # evaluating the model
-        _, acc = model.evaluate(test_iterator, steps=len(test_iterator), verbose=0)
-        print("Test Accuracy: %.3f" % (acc * 100))
-
         self.model = model
 
     def predict(self, data: np.ndarray):
@@ -141,6 +172,23 @@ class CNN_v2:
             raise ValueError("Model has not been trained yet")
 
         return self.model.predict(data)
+
+    def evaluate(self) -> tuple[np.ndarray, float]:
+        if self.model is None:
+            raise ValueError("Model has not been trained yet")
+
+        test_iterator = ImageDataGenerator().flow(
+            self.X_test, self.y_test, batch_size=64
+        )
+        _, acc = self.model.evaluate(test_iterator, steps=len(test_iterator), verbose=0)
+
+        y_predict = self.model.predict(self.X_test, batch_size=64)
+
+        # Print test accuracy
+        print("Test Accuracy: %.3f" % (acc * 100))
+
+        # Return predictions and accuracy
+        return y_predict, acc
 
     def save_model(self, path: str):
         if self.model is None:
@@ -154,5 +202,10 @@ class CNN_v2:
 
 if __name__ == "__main__":
     model = CNN_v2()
-    model.load_data(data_fraction=1.0)
+    all_data = load_csv.load_pandas()
+    all_outliers = load_csv.get_outliers(all_data)
+    test_set = load_csv.sample_data(all_outliers, 100)
+    model.load_data(test_set=test_set)
     model.train()
+
+    model.evaluate()
