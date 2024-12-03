@@ -105,9 +105,9 @@ class SOM:
         """
         images = list(data["image"])
         errors = self.compute_bmu_distance(images)
-        predictions = (errors > self.threshold).astype(int)
-        data["predictions"] = predictions
-        data["errors"] = errors
+        predictions = (errors < self.threshold).astype(int)
+        data["prediction"] = predictions
+        data["error "] = errors
         return data
 
     def save_model(self, path):
