@@ -6,6 +6,7 @@ from sklearn.model_selection import train_test_split
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
+from stats import evaluate_perf_utils as eval
 
 from models.CNN import feature_extraction as fe
 from utils import load_csv
@@ -28,7 +29,6 @@ class CNN_v2:
         data_fraction: float = 1.0,
         target_size: tuple = (60, 80),
         val_size: float = 0.2,
-        test_size: float = 0.0,
         test_set: pd.DataFrame = pd.DataFrame([]),
         use_smote: bool = True,
     ):
@@ -53,6 +53,7 @@ class CNN_v2:
 
         (features_X, features_y) = fe.standardize(total_data, target_size=target_size)
 
+        # Use SMOTE to balance the classes
         if use_smote:
             sm = SMOTE(random_state=42, sampling_strategy="minority")
 
@@ -66,7 +67,13 @@ class CNN_v2:
                 smote_x.shape[0], target_size[0], target_size[1], 1
             )
             features_y = smote_y
+        else:
+            features_X = features_X.reshape(
+                features_X.shape[0], target_size[0], target_size[1], 1
+            )
+            features_y = features_y.reshape(-1)
 
+        # If a test set is provided, separate it from the training data
         if test_set.size > 0:
             # Standardize the test set
             test_features_X, test_features_y = fe.standardize(
@@ -106,6 +113,12 @@ class CNN_v2:
         self.y_train = y_train
         self.y_val = y_val
         self.y_test = y_test
+
+        print("Class distribution in test set:")
+        print(pd.Series(model.y_test).value_counts())
+
+        print("Class distribution in training set:")
+        print(pd.Series(model.y_train).value_counts())
 
         print(f"Training data shape: {X_train.shape}")
         print(f"Validation data shape: {X_val.shape}")
@@ -177,12 +190,20 @@ class CNN_v2:
         if self.model is None:
             raise ValueError("Model has not been trained yet")
 
-        test_iterator = ImageDataGenerator().flow(
-            self.X_test, self.y_test, batch_size=64
+        datagen = ImageDataGenerator(
+            featurewise_center=True, featurewise_std_normalization=True
         )
+
+        datagen.fit(self.X_train)
+
+        test_iterator = datagen.flow(self.X_test, self.y_test, batch_size=64)
         _, acc = self.model.evaluate(test_iterator, steps=len(test_iterator), verbose=0)
 
-        y_predict = self.model.predict(self.X_test, batch_size=64)
+        y_predict_prob = self.model.predict(self.X_test, batch_size=64)
+
+        y_predict = (y_predict_prob >= 0.5).astype(int)
+
+        y_predict = y_predict.reshape(-1)
 
         # Print test accuracy
         print("Test Accuracy: %.3f" % (acc * 100))
@@ -204,8 +225,16 @@ if __name__ == "__main__":
     model = CNN_v2()
     all_data = load_csv.load_pandas()
     all_outliers = load_csv.get_outliers(all_data)
-    test_set = load_csv.sample_data(all_outliers, 100)
-    model.load_data(test_set=test_set)
-    model.train()
+    all_inliers = load_csv.get_correct_data(all_data)
+    test_set_outliers = load_csv.sample_data(all_outliers, 100)
+    test_set_inliers = load_csv.sample_data(all_inliers, 100)
 
-    model.evaluate()
+    test_set = pd.concat([test_set_outliers, test_set_inliers], ignore_index=True)
+
+    model.load_data(test_set=test_set)
+    model.train(epochs=20)
+    y_predict, _ = model.evaluate()
+    print("y_predict shape: ", y_predict.shape)
+    print("y_predict first 5 elements: ", y_predict[:5])
+
+    eval.evaluate_performance(model.y_test, y_predict)
