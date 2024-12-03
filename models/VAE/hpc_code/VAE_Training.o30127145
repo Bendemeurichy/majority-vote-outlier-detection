@@ -1,0 +1,112 @@
+train length: 4369
+val length: 1457
+test length: 1748
+outlier test training: False
+outlier test validation: False
+outlier test test: True
+Epoch 1/50
+Step 0 (N samples: 0), Loss: 3360.7458 (Recon: 3326.5579, KL: 34.1880) Grad: 27.4978
+====> Test set loss: 3122.8030 (BCE: 3077.4621, KLD: 45.3408)
+Epoch 2/50
+====> Test set loss: 2251.0880 (BCE: 2217.6688, KLD: 33.4191)
+Epoch 3/50
+====> Test set loss: 2138.4216 (BCE: 2123.3549, KLD: 15.0667)
+Epoch 4/50
+====> Test set loss: 2118.2090 (BCE: 2106.7563, KLD: 11.4528)
+Epoch 5/50
+====> Test set loss: 2111.0409 (BCE: 2100.7286, KLD: 10.3123)
+Epoch 6/50
+====> Test set loss: 2103.5021 (BCE: 2096.9079, KLD: 6.5942)
+Epoch 7/50
+====> Test set loss: 2106.5785 (BCE: 2101.5746, KLD: 5.0039)
+Epoch 8/50
+====> Test set loss: 2102.5463 (BCE: 2097.9434, KLD: 4.6028)
+Epoch 9/50
+====> Test set loss: 2093.7756 (BCE: 2089.5663, KLD: 4.2093)
+Epoch 10/50
+Step 100 (N samples: 43,600), Loss: 2080.1045 (Recon: 2075.5076, KL: 4.5968) Grad: 47.5381
+====> Test set loss: 2097.1921 (BCE: 2092.9720, KLD: 4.2200)
+Epoch 11/50
+====> Test set loss: 2102.9363 (BCE: 2098.3633, KLD: 4.5730)
+Epoch 12/50
+====> Test set loss: 2097.6627 (BCE: 2093.9838, KLD: 3.6788)
+Epoch 13/50
+====> Test set loss: 2099.8047 (BCE: 2095.5762, KLD: 4.2286)
+Epoch 14/50
+====> Test set loss: 2096.5145 (BCE: 2091.8621, KLD: 4.6525)
+Epoch 15/50
+====> Test set loss: 2090.8444 (BCE: 2086.7094, KLD: 4.1349)
+Epoch 16/50
+====> Test set loss: 2098.3170 (BCE: 2094.3208, KLD: 3.9962)
+Epoch 17/50
+====> Test set loss: 2100.9918 (BCE: 2096.4771, KLD: 4.5147)
+Epoch 18/50
+====> Test set loss: 2095.0609 (BCE: 2090.6522, KLD: 4.4087)
+Epoch 19/50
+Step 200 (N samples: 87,200), Loss: 2079.7859 (Recon: 2075.7119, KL: 4.0741) Grad: 67.5875
+====> Test set loss: 2094.6198 (BCE: 2089.8925, KLD: 4.7273)
+Epoch 20/50
+====> Test set loss: 2090.9146 (BCE: 2086.6281, KLD: 4.2864)
+Epoch 21/50
+====> Test set loss: 2094.2109 (BCE: 2089.9056, KLD: 4.3053)
+Epoch 22/50
+====> Test set loss: 2092.9361 (BCE: 2088.5321, KLD: 4.4040)
+Epoch 23/50
+====> Test set loss: 2097.1675 (BCE: 2093.3494, KLD: 3.8181)
+Epoch 24/50
+====> Test set loss: 2091.9495 (BCE: 2087.3699, KLD: 4.5796)
+Epoch 25/50
+====> Test set loss: 2102.9751 (BCE: 2098.2003, KLD: 4.7749)
+Epoch 26/50
+====> Test set loss: 2090.7344 (BCE: 2086.5398, KLD: 4.1947)
+Epoch 27/50
+====> Test set loss: 2095.9381 (BCE: 2091.9475, KLD: 3.9906)
+Epoch 28/50
+Step 300 (N samples: 130,800), Loss: 2103.7842 (Recon: 2099.1956, KL: 4.5885) Grad: 35.0697
+====> Test set loss: 2094.9678 (BCE: 2090.2455, KLD: 4.7224)
+Epoch 29/50
+====> Test set loss: 2096.6823 (BCE: 2092.4073, KLD: 4.2749)
+Epoch 30/50
+====> Test set loss: 2103.0215 (BCE: 2099.2693, KLD: 3.7522)
+Epoch 31/50
+====> Test set loss: 2094.9143 (BCE: 2090.7758, KLD: 4.1385)
+Epoch 32/50
+====> Test set loss: 2096.5300 (BCE: 2092.8875, KLD: 3.6426)
+Epoch 33/50
+====> Test set loss: 2094.7524 (BCE: 2091.1584, KLD: 3.5940)
+Epoch 34/50
+====> Test set loss: 2099.0361 (BCE: 2095.4886, KLD: 3.5475)
+Epoch 35/50
+====> Test set loss: 2094.4262 (BCE: 2090.9491, KLD: 3.4771)
+Epoch 36/50
+====> Test set loss: 2098.7892 (BCE: 2095.7573, KLD: 3.0319)
+Epoch 37/50
+Step 400 (N samples: 174,400), Loss: 2116.7239 (Recon: 2113.3447, KL: 3.3792) Grad: 32.7528
+====> Test set loss: 2097.6037 (BCE: 2094.2983, KLD: 3.3055)
+Epoch 38/50
+====> Test set loss: 2092.1649 (BCE: 2089.1682, KLD: 2.9966)
+Epoch 39/50
+====> Test set loss: 2089.4657 (BCE: 2086.3379, KLD: 3.1278)
+Epoch 40/50
+====> Test set loss: 2081.8647 (BCE: 2078.8720, KLD: 2.9927)
+Epoch 41/50
+====> Test set loss: 2100.4818 (BCE: 2097.5688, KLD: 2.9130)
+Epoch 42/50
+====> Test set loss: 2094.2255 (BCE: 2091.1182, KLD: 3.1073)
+Epoch 43/50
+====> Test set loss: 2095.3612 (BCE: 2091.5505, KLD: 3.8107)
+Epoch 44/50
+====> Test set loss: 2086.5433 (BCE: 2080.9089, KLD: 5.6344)
+Epoch 45/50
+====> Test set loss: 2075.6465 (BCE: 2070.5855, KLD: 5.0610)
+Epoch 46/50
+Step 500 (N samples: 218,000), Loss: 2068.4343 (Recon: 2063.4668, KL: 4.9675) Grad: 22.7976
+====> Test set loss: 2089.7528 (BCE: 2084.5544, KLD: 5.1984)
+Epoch 47/50
+====> Test set loss: 2075.2524 (BCE: 2070.2348, KLD: 5.0176)
+Epoch 48/50
+====> Test set loss: 2084.0257 (BCE: 2078.9698, KLD: 5.0559)
+Epoch 49/50
+====> Test set loss: 2079.9170 (BCE: 2074.9036, KLD: 5.0134)
+Epoch 50/50
+====> Test set loss: 2079.3419 (BCE: 2074.1168, KLD: 5.2251)

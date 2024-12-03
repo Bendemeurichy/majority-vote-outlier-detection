@@ -3,23 +3,23 @@ import sys
 from datetime import datetime
 import torch
 from torch.utils.tensorboard import SummaryWriter
-from utils.dataloader import ImagePathDataset
 from torchvision.transforms import v2
 
-sys.path.append("../../")
+sys.path.append("../../../")
 
+from utils.dataloader import ImagePathDataset
 import utils.load_csv as load_csv
 from models.VAE.VAE import VAE
 
 
 def main():
-    batch_size = 128
+    batch_size = 436
     lr = 1e-4
     weight_decay = 1e-2
-    epochs = 60
+    epochs = 50
     input_dim = 4800
-    hidden_dim = 2000
-    latent_dim = 30
+    hidden_dim = 4000
+    latent_dim = 320
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--samples", type=int, default=0)
@@ -29,6 +29,7 @@ def main():
     set = load_csv.load_pandas()
     if args.samples > 0:
         set = set.sample(n=args.samples)
+        
 
     train, val, test = load_csv.split_data(set)
 
@@ -80,5 +81,8 @@ def main():
             train_dataloader, optimizer, prev_updates, writer
         )
         model.test(val_dataloader, prev_updates, writer)
-
+    
     torch.save(model.state_dict(), "vae.pth")
+
+if __name__ == "__main__":
+    main()
