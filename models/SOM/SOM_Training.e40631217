@@ -1,0 +1,6 @@
+/kyukon/home/gent/464/vsc46423/machine_learning/models/SOM/../../utils/load_csv.py:20: DtypeWarning: Columns (91,94,209,213) have mixed types. Specify dtype option on import or set low_memory=False.
+  frame = pd.read_csv(data_path, delimiter=";").iloc[:, -3:]
+/apps/gent/RHEL9/cascadelake-volta-ib/software/PyTorch-bundle/2.1.2-foss-2023a-CUDA-12.1.1/lib/python3.11/site-packages/torchvision/transforms/functional.py:1603: UserWarning: The default value of the antialias parameter of all the resizing transforms (Resize(), RandomResizedCrop(), etc.) will change from None to True in v0.17, in order to be consistent across the PIL and Tensor backends. To suppress this warning, directly pass antialias=True (recommended, future default), antialias=None (current default, which means False for Tensors and True for PIL), or antialias=False (only works on Tensors - PIL will still use antialiasing). This also applies if you are using the inference transforms from the models weights: update the call to weights.transforms(antialias=True).
+  warnings.warn(
+/scratch/gent/464/vsc46423/site-packages/minisom.py:631: RuntimeWarning: invalid value encountered in sqrt
+  return sqrt(-2 * cross_term + input_data_sq + weights_flat_sq.T)

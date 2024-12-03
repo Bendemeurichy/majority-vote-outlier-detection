@@ -12,7 +12,7 @@ import preprocessing.tiff_handling as tiff_handling
 
 def main():
     # Load and preprocess data
-    dimensions = 60
+    dimensions = 100
 
     set = load_csv.load_pandas()
     train, val, test = load_csv.split_data(set)
@@ -30,9 +30,9 @@ def main():
             v2.ToImage(),
             v2.ToDtype(torch.float32, scale=True),
             v2.Resize((60, 80)),
-            v2.Lambda(
-                lambda x: (x.view(-1) - torch.min(x)) / (torch.max(x) - torch.min(x))
-            ),
+            # v2.Lambda(
+            #     lambda x: (x.view(-1) - torch.min(x)) / (torch.max(x) - torch.min(x))
+            # ),
         ]
     )
 
@@ -45,7 +45,7 @@ def main():
 
     # TODO use validation set to determine the threshold for the outlier detection
 
-    som = SOM(dimensions, dimensions, train_data.shape[1])
+    som = SOM(train_data.shape[1],dimensions)
 
     som.train(train_data)
 

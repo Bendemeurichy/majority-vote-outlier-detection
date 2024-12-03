@@ -48,7 +48,9 @@ class SOM:
 
         errors = np.array(
             [
-                np.linalg.norm(data[i] - self.som.get_weights()[self.som.winner(data[i])])
+                np.linalg.norm(
+                    data[i] - self.som.get_weights()[self.som.winner(data[i])]
+                )
                 for i in range(len(data))
             ]
         )
@@ -101,9 +103,12 @@ class SOM:
         Returns:
             numpy.ndarray: Binary predictions (1 = anomaly, 0 = normal).
         """
-        errors = self.compute_bmu_distance(data)
+        images = list(data["image"])
+        errors = self.compute_bmu_distance(images)
         predictions = (errors > self.threshold).astype(int)
-        return predictions, errors
+        data["predictions"] = predictions
+        data["errors"] = errors
+        return data
 
     def save_model(self, path):
         """
@@ -128,3 +133,4 @@ class SOM:
             self.som = data["som"]
             self.threshold = data["threshold"]
         print(f"Model loaded from {path}.")
+        return self

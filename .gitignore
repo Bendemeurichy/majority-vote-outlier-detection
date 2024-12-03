@@ -168,3 +168,4 @@ HT29_data/
 __ignore*
 runs/
 *.pth
+*.pkl
