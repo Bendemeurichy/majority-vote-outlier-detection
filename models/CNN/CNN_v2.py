@@ -16,6 +16,7 @@ class CNN_v2:
     def __init__(self, data: pd.DataFrame = pd.DataFrame([])):
         self.data = data
         self.model = None
+        self.datagenerator = None
 
         self.X_train: np.ndarray
         self.X_val: np.ndarray
@@ -148,6 +149,8 @@ class CNN_v2:
 
         datagen.fit(self.X_train)
 
+        self.datagenerator = datagen
+
         train_iterator = datagen.flow(self.X_train, self.y_train, batch_size=64)
         val_iterator = datagen.flow(self.X_val, self.y_val, batch_size=64)
 
@@ -180,11 +183,26 @@ class CNN_v2:
 
         self.model = model
 
-    def predict(self, data: np.ndarray):
+    # TODO: Change the predict method to use an image data generator
+    def predict(self, data: np.ndarray) -> tuple[int, float]:
+        """Takes a numpy array of an image and predicts the class of the image
+
+        Args:
+            data (np.ndarray): numpy array of images
+
+        Raises:
+            ValueError: Model has not been trained yet
+
+        Returns:
+            tuple[int, float]: tuple containing the predicted class and the probability of the prediction
+        """
         if self.model is None:
             raise ValueError("Model has not been trained yet")
 
-        return self.model.predict(data)
+        test_gen = self.datagenerator.flow(data, batch_size=64, shuffle=False)
+        y_predict_prob = self.model.predict(test_gen)
+        y_predict = (y_predict_prob >= 0.5).astype(int)
+        return y_predict, y_predict_prob
 
     def evaluate(self) -> tuple[np.ndarray, float]:
         if self.model is None:
@@ -196,14 +214,16 @@ class CNN_v2:
 
         datagen.fit(self.X_train)
 
-        test_iterator = datagen.flow(self.X_test, self.y_test, batch_size=64)
+        test_iterator = datagen.flow(
+            self.X_test, self.y_test, batch_size=64, shuffle=False
+        )
         _, acc = self.model.evaluate(test_iterator, steps=len(test_iterator), verbose=0)
 
-        y_predict_prob = self.model.predict(self.X_test, batch_size=64)
+        y_predict_prob = self.model.predict(test_iterator, batch_size=64)
 
-        y_predict = (y_predict_prob >= 0.5).astype(int)
+        y_predict_prob = (y_predict_prob >= 0.5).astype(int)
 
-        y_predict = y_predict.reshape(-1)
+        y_predict = y_predict_prob.reshape(-1)
 
         # Print test accuracy
         print("Test Accuracy: %.3f" % (acc * 100))
@@ -235,6 +255,13 @@ if __name__ == "__main__":
     model.train(epochs=20)
     y_predict, _ = model.evaluate()
     print("y_predict shape: ", y_predict.shape)
-    print("y_predict first 5 elements: ", y_predict[:5])
+    print("y_predict all elements: ", y_predict[:200])
 
-    eval.evaluate_performance(model.y_test, y_predict)
+    metrics = eval.evaluate_performance(model.y_test, y_predict)
+    print("True negatives: ", metrics["tn"])
+    print("False positives: ", metrics["fp"])
+    print("False negatives: ", metrics["fn"])
+    print("True positives: ", metrics["tp"])
+    print("Precision: ", metrics["precision"])
+    print("Recall: ", metrics["recall"])
+    print("F1 score: ", metrics["f1"])
