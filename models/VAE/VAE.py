@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 import pandas as pd
 import numpy as np
+from skimage.metrics import structural_similarity as ssim
 
 # code from: https://hunterheidenreich.com/posts/modern-variational-autoencoder-in-pytorch/
 
@@ -257,16 +258,17 @@ class VAE(nn.Module):
             )
         return test_loss
 
-    def extract_error_threshold(self, dataloader, percentile=95):
-        """Evaluate the model on normal data to determine the anomaly threshold.
-        The threshold is set at a high percentile of reconstruction errors on normal data.
+    def extract_error_threshold(self, dataloader, method="percentile", value=95):
+        """Determine anomaly threshold based on reconstruction errors.
 
         Args:
-            dataloader (torch.utils.data.DataLoader): DataLoader containing normal data
-            percentile (int, optional): Percentile to use for threshold. Defaults to 95.
+            dataloader (torch.utils.data.DataLoader): DataLoader containing normal data.
+            method (str): Method to determine threshold ("percentile", "zscore", "gmm").
+            value (float, optional): Percentile or z-score value, or GMM component probability.
+                Defaults to 95 for percentile or 3 for z-score.
 
         Returns:
-            float: Threshold value for anomaly detection
+            float: Threshold value for anomaly detection.
         """
         self.eval()
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -280,51 +282,79 @@ class VAE(nn.Module):
                 output = self(data, compute_loss=False)
                 x_reconstructed = output["x_reconstructed"]
 
-                # Compute reconstruction error for each sample
-                errors = F.binary_cross_entropy(
-                    x_reconstructed, data, reduction="none"
-                ).sum(dim=-1)
-                reconstruction_errors.extend(errors.cpu().numpy())
+                ssim_errors = batch_ssim(data, x_reconstructed)
 
-        # Set threshold at specified percentile
-        threshold = np.percentile(reconstruction_errors, percentile)
+                # Use structural similarity index to compute reconstruction errors
+                reconstruction_errors.extend(ssim_errors)
+
+        reconstruction_errors = np.array(reconstruction_errors)
+
+        if method == "percentile":
+            threshold = np.percentile(reconstruction_errors, value)
+        elif method == "zscore":
+            threshold = np.mean(reconstruction_errors) + value * np.std(
+                reconstruction_errors
+            )
+        elif method == "gmm":
+            from sklearn.mixture import GaussianMixture
+
+            gmm = GaussianMixture(n_components=2, random_state=42)
+            gmm.fit(reconstruction_errors.reshape(-1, 1))
+            cluster_means = gmm.means_.flatten()
+            threshold = cluster_means[np.argmax(cluster_means)]
+        else:
+            raise ValueError(f"Unknown method: {method}")
+
         self.threshold = threshold
         return threshold
 
     def predict(self, data: pd.DataFrame, threshold=None):
-        """Predict if the data contains singlets (normal) or doublets (anomalies).
+        """Predict if the data contains anomalies.
 
         Args:
-            data (pd.DataFrame): Input data.
-            threshold (float, optional): Anomaly threshold. If None, returns raw reconstruction errors.
+            data (pd.DataFrame): Input data with an 'image' column containing tensors.
+            threshold (float, optional): Anomaly threshold. If None, uses the pre-computed threshold.
 
         Returns:
-            Adds a new column 'prediction' to the input data:
-                If threshold is provided: Class predictions ('singlet' = 0, 'doublet' = 1)
-                and reconstruction errors
-                If threshold is None: Reconstruction errors for each sample
+            pd.DataFrame: Updated with:
+                - 'prediction': Anomaly classification (1 = anomaly, 0 = normal).
+                - 'reconstruction_error': Reconstruction errors for each sample.
         """
         self.eval()
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        images = torch.stack(data["image"].values).to(device)
+        images = torch.stack(list(data["image"])).to(device)
 
         with torch.no_grad():
+            # Forward pass through the model
             output = self(images, compute_loss=False)
             x_reconstructed = output["x_reconstructed"]
 
-            # Compute reconstruction error for each sample
-            errors = F.binary_cross_entropy(
-                x_reconstructed, images, reduction="none"
-            ).sum(dim=-1)
+            # Compute reconstruction error using structural similarity index
+            reconstruction_errors = batch_ssim(images, x_reconstructed)
 
-            if threshold := (threshold or self.threshold):
-                # Predict anomalies
-                predictions = (errors > threshold).astype(int)
-                data["prediction"] = [
-                    "Doublet" if p else "Singlet" for p in predictions
-                ]
+            # Classify anomalies based on threshold
+            if threshold is None:
+                threshold = self.threshold
+            predictions = reconstruction_errors < threshold
 
-            else:
-                data["reconstruction_error"] = errors.cpu().numpy()
+            # Update DataFrame
+            data["prediction"] = predictions.astype(int)
+
+            data["reconstruction_error"] = reconstruction_errors
+
+            return data
 
         return data
+
+
+def batch_ssim(originals, reconstructions):
+    errors = [
+        1
+        - ssim(
+            originals[i].cpu().numpy().squeeze(),
+            reconstructions[i].cpu().numpy().squeeze(),
+            data_range=1,
+        )
+        for i in range(originals.shape[0])
+    ]
+    return np.array(errors)
