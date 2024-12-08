@@ -29,6 +29,8 @@ tensorboard = "^2.18.0"
 minisom = "^2.3.3"
 opencv-python = "^4.10.0.84"
 imblearn = "^0.0"
+torchviz = "^0.0.3"
+networkx = "^3.4.2"
 
 
 
