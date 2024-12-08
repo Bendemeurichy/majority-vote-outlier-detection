@@ -33,6 +33,15 @@ class CNN_v2:
         test_set: pd.DataFrame = pd.DataFrame([]),
         use_smote: bool = True,
     ):
+        if self.model is not None:
+            print("Existing model found. Only loading test data.")
+            if test_set.size == 0:
+                raise ValueError("No test set provided")
+            else:
+                self.X_test, self.y_test = fe.standardize(
+                    test_set, target_size=target_size
+                )
+                return
         # Load all the data and separate inliers and outliers
         all_data = load_csv.load_pandas()
         all_inliers = load_csv.get_correct_data(all_data)
@@ -212,7 +221,7 @@ class CNN_v2:
             featurewise_center=True, featurewise_std_normalization=True
         )
 
-        datagen.fit(self.X_train)
+        datagen.fit(self.X_test)
 
         test_iterator = datagen.flow(
             self.X_test, self.y_test, batch_size=64, shuffle=False
@@ -244,18 +253,17 @@ class CNN_v2:
 if __name__ == "__main__":
     model = CNN_v2()
     all_data = load_csv.load_pandas()
-    all_outliers = load_csv.get_outliers(all_data)
-    all_inliers = load_csv.get_correct_data(all_data)
-    test_set_outliers = load_csv.sample_data(all_outliers, 100)
-    test_set_inliers = load_csv.sample_data(all_inliers, 100)
 
-    test_set = pd.concat([test_set_outliers, test_set_inliers], ignore_index=True)
+    _, _, test_set = load_csv.split_data(all_data)
+
+    model.load_model("models/CNN/cnn.keras")
 
     model.load_data(test_set=test_set)
-    model.train(epochs=20)
+
+    # model.save_model("cnn.keras")
     y_predict, _ = model.evaluate()
-    print("y_predict shape: ", y_predict.shape)
-    print("y_predict all elements: ", y_predict[:200])
+    # print("y_predict shape: ", y_predict.shape)
+    # print("y_predict all elements: ", y_predict[:200])
 
     metrics = eval.evaluate_performance(model.y_test, y_predict)
     print("True negatives: ", metrics["tn"])
