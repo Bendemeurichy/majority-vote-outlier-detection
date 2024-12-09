@@ -69,7 +69,8 @@ class Majority_Vote:
 
         # CNN
 
-        self.cnn = CNN.load_model(CNN(), cnn_model_path)
+        self.cnn = CNN()
+        self.cnn.load_model(cnn_model_path)
 
     def set_thresholds(self, val_set: pd.DataFrame):
         vae_val_set = dataloader.ImagePathDataset(val_set, self.vae_transform)
@@ -114,12 +115,21 @@ class Majority_Vote:
         vae_output = self.vae.predict(vae_test)
         cnn_output, _ = self.cnn.evaluate()
 
+        som_output = np.array(som_output["prediction"])
+        vae_output = np.array(vae_output["prediction"])
+
+        print("Shape of SOM output:", som_output.shape)
+        print("Shape of VAE output:", vae_output.shape)
+        print("Shape of CNN output:", cnn_output.shape)
+
+        print("Test set shape:", test_set.shape)
+
         # Majority vote
         majority_vote = np.zeros(len(test_set))
 
         temp_arr = np.add(som_output, vae_output)
         temp_arr = np.add(temp_arr, cnn_output)
-        majority_vote[temp_arr >= 2] = 1
+        majority_vote = np.where(temp_arr < 2, 0, 1)
 
         return majority_vote
 
