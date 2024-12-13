@@ -118,6 +118,9 @@ class Majority_Vote:
         som_output = np.array(som_output["prediction"])
         vae_output = np.array(vae_output["prediction"])
 
+        som_output = np.where(som_output == 1, 0, 1)
+        vae_output = np.where(vae_output == 1, 0, 1)
+
         print("Shape of SOM output:", som_output.shape)
         print("Shape of VAE output:", vae_output.shape)
         print("Shape of CNN output:", cnn_output.shape)
