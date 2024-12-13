@@ -113,12 +113,21 @@ class VAE(nn.Module):
                 "loss_reconstruction": None,
                 "loss_kl": None,
             }
+        
+        x_np = x.detach().cpu().numpy()
+        x_reconstructed_np = x_reconstructed.detach().cpu().numpy()
 
-        loss_reconstruction = (
-            F.binary_cross_entropy(x_reconstructed, x, reduction="none")
-            .sum(dim=-1)
-            .mean()
-        )
+        batch_size = x.shape[0]
+        ssim_loss = 0.0
+        for i in range(batch_size):
+            ssim_value = ssim(
+                x_np[i, 0],  # Assuming single-channel grayscale images
+                x_reconstructed_np[i, 0],
+                data_range=x_np[i, 0].max() - x_np[i, 0].min(),
+            )
+            ssim_loss += (1 - ssim_value)
+
+        ssim_loss /= batch_size
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -127,7 +136,7 @@ class VAE(nn.Module):
         )
 
         loss_kl = torch.distributions.kl.kl_divergence(distribution, std_normal).mean()
-        loss = loss_reconstruction + loss_kl
+        loss = ssim_loss + loss_kl
 
         return {
             "distribution": distribution,
